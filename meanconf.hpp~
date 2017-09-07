@@ -1,0 +1,62 @@
+#ifndef MEANCONF_HPP_
+#define MEANCONF_HPP_
+
+#include <cstddef>
+#include <cmath>
+#include <tuple>
+#include <vector>
+
+namespace barrier{
+
+namespace internal{
+
+	/**
+	 * This implementation is rather simple because i assume a priori confidence level of 99.9%.
+	 * The critical values for the t-distributions are taken from: http://www.stat.tamu.edu/~lzhou/stat302/T-Table.pdf 
+	 * Also, the degrees of freedom is limited to a maximum of 30.
+	 */
+	class confidence_interval{
+	private:
+		//! For v degrees of freedom, t_critical_value[v-1] gives the associated critical value. v is limited in the range
+		// [1 : 30]
+		static const double t_critical_value[];
+	
+	public:	
+		confidence_interval(std::size_t num_samples){ samples.reserve(num_samples); }
+
+		// add this sample 
+		void add(double v){ samples.push_back(v); }
+
+		// return <lower, mean, upper>
+		std::tuple<double, double, double> mean(){
+			double m{0.0};
+			for (std::size_t i = 0; i < samples.size(); ++i){
+				m += samples[i];
+			}
+			m /= (double)samples.size();
+
+			double s{0.0};
+			for (std::size_t i = 0; i < samples.size(); ++i){
+				s += ((samples[i] - m)*(samples[i] - m));
+			}
+			s /= (double)(samples.size() - 1); // divide by n-1 because i use sample standard deviation
+
+			double margin_of_error = t_critical_value[samples.size() - 1]*(std::sqrt(s)/std::sqrt((double)samples.size()));
+
+			return std::make_tuple(m - margin_of_error, m, m + margin_of_error);
+		}
+
+		void reset(std::size_t num_samples){
+			samples.clear();
+			samples.reserve(num_samples);
+		}
+
+	private:
+		std::vector<double> samples;
+	};
+
+} 
+
+}
+
+#endif

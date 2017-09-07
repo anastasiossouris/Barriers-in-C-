@@ -1,0 +1,9 @@
+# NumberOf Threads \ Workload = 100 \  StaticTreeBarrier StaticTreeBarrierWithGlobalDeparture
+1 	467172		488941
+2	1.15851e+06	1.15891e+06
+3	1.30122e+06	1.39603e+06
+4	2.21941e+06	1.65159e+06
+5	2.53341e+06	2.26718e+06
+6	2.76492e+06	2.34116e+06
+7	3.18491e+06	2.32508e+06
+8	4.36646e+06	3.00507e+06

@@ -1,0 +1,6 @@
+#ifndef __CACHE_LINE_SIZE_HPP_IS_INCLUDED__
+#define __CACHE_LINE_SIZE_HPP_IS_INCLUDED__
+
+#define CACHE_LINE_SIZE (64)
+
+#endif

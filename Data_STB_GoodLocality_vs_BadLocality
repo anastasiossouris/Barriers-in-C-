@@ -1,0 +1,9 @@
+# NumberOf Threads \ Workload = 100 \ StaticTreeBarrier-GoodLocality StaticTreeBarrier-BadLocality
+1 	467172		450416
+2	1.15851e+06	1.1607e+06
+3	1.30122e+06	1.26787e+06
+4	2.21941e+06	2.31811e+06
+5	2.53341e+06	2.99819e+06
+6	2.76492e+06	3.19806e+06
+7	3.18491e+06	5.41982e+06
+8	4.36646e+06	6.03243e+06

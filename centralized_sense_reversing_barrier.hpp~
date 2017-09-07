@@ -1,0 +1,187 @@
+#ifndef __CENTRALIZED_SENSE_REVERSING_BARRIER_HPP_IS_INCLUDED__
+#define __CENTRALIZED_SENSE_REVERSING_BARRIER_HPP_IS_INCLUDED__ 1
+
+#include <atomic>
+#include "cache_line_size.hpp"
+#include "atomic_backoff.hpp"
+
+namespace barrier{
+
+/**
+ * Centralized Sense-Reversing Barrier:
+ * -----------------------------------
+ *
+ * This is the simplest barrier. I need the following data:
+ *	(1) counter: a shared atomic counter that keeps count of the number of threads that have called the await() method. This is accessed using
+ *	the fetch_add() primitive at the start of each await() invocation.
+ *	(2) num_threads: number of threads expected to call await(). The last thread that comes will increment counter from num_threads-1 to num_threads.
+ *	In this case, that thread is responsible for signalling the other threads that they can proceed to the next phase.
+ *	(3) sense: a shared atomic boolean flag initialized to true and switching values at the end of each barrier phase. The last thread to arrive changes the
+ *	value of the sense variable. The other threads continuously monitor that value and when it changes value they know that they can proceed to the next phase.
+ *	(4) local_sense: a thread local variable that each thread uses to keep monitoring of sense changes.
+ *
+ * Data packing:
+ * ------------
+ *	I pack members (1), (2) and (3) in "struct centralized_sense_reversing_barrier" which in some sense represents the barrier.
+ *	The local sense variables must be allocated by the client and passed as parameter to the await() function by each thread.
+ *
+ * Alignment requirements:
+ * ----------------------
+ *	The struct itself avoids false-sharing internally. However, to avoid false-sharing between different instances and other data the threads may need, a 
+ *	object of this struct must be allocated to cache-line boundaries.
+ *	The local_sense variables must be allocated by the client and each must be allocated to cache-line boundaries to avoid false-sharing. Also, it would be beneficial
+ *	to have those cache-lines allocated to a memory module near to the thread that will use that cache-line. Also, avoid having those cache-lines allocated as an array
+ *	because if hardware prefetching is enabled, it will result in false-sharing even across different cache-lines!! (This has been documented in the paper
+ *	"The Scalable Commutativity Rule: Designing Scalable Software for Multicore Processors" - see the Experimental Setup section).
+ *
+ * Usage:
+ * -----
+ * 	This barrier is used as:
+ *	
+ *	Step (a): Allocate an instance of struct centralized_sense_reversing_barrier to cache-line boundary
+ *		struct centralized_sense_reversing_barrier* barrier = cache_aligned_alloc(...);
+ *	Step (b): Initialize the barrier instance:
+ *		init_centralized_sense_reversing_barrier(barrier, num_threads);
+ *	Step (c): Allocate the local_sense variables for each thread (that is allocate in total num_threads local_sense variables). Follow the guidelines under the 
+ *	"Alignment Requirements" section. Use the init_centralized_sense_reversing_barrier_local_sense() method to *EACH* local_sense variable.
+ *	Step (d): Pass the local_sense to each thread that will use it (this need some extra bookkeeping by each thread). 
+ *	NOTE: depending on the memory binding policy steps (c) and (d) can be mixed or executed in the opposite order. For example, have each thread allocate its own
+ *	local_sense.
+ * 	Step (e): Since the initialization of the barrier instance is not atomic, memory visibility must be ensured for that threads. This can be done with a simple flag
+ *	where the thread that performed the initialization sets to true with a release memory ordering and each thread waits with acquire memory ordering.
+ *	Step (f): Have the threads use the barrier instance through the await() method.
+ */ 
+class centralized_sense_reversing_barrier{
+public:
+	using size_type = unsigned int;
+
+	// Initialization is not atomic!
+	explicit centralized_sense_reversing_barrier(size_type n) : counter{0}, sense{true}, num_threads{n} {}
+
+	#if 0
+	void await(){
+		// arrive at the barrier
+		const size_type pre_arrived = counter.fetch_add(1, std::memory_order_release);
+
+		if (pre_arrived + 1 == num_threads){
+			// i am the last to arrive so reset and signal departure
+			// but first sync memory
+			counter.load(std::memory_order_acquire);
+			counter.store(0, std::memory_order_relaxed);
+			sense.store(local_sense, std::memory_order_release);
+		}
+		else{
+			barrier::internal::default_atomic_backoff backoff;
+
+			// wait until the last one arrives
+			while (sense.load(std::memory_order_relaxed) != local_sense){
+				//backoff();				
+			}
+			sense.load(std::memory_order_acquire); // sync memory
+		}
+
+		local_sense = !local_sense;
+	}
+	#endif
+
+	#if 0
+	void await(){
+		// the seq-cst version
+
+		// arrive at the barrier
+		const size_type pre_arrived = counter.fetch_add(1);
+
+		if (pre_arrived + 1 == num_threads){
+			counter.store(0);
+			sense.store(local_sense);
+		}
+		else{
+			barrier::internal::default_atomic_backoff backoff;
+
+			// wait until the last one arrives
+			while (sense.load() != local_sense){
+				//backoff();				
+			}
+			sense.load(); // sync memory
+		}
+
+		local_sense = !local_sense;
+	}
+	#endif
+
+	#if 0
+	void await(){
+		// arrive at the barrier
+		const size_type pre_arrived = counter.fetch_add(1, std::memory_order_acq_rel);
+
+		if (pre_arrived + 1 == num_threads){
+			// i am the last to arrive so reset and signal departure
+			counter.store(0, std::memory_order_relaxed);
+			sense.store(local_sense, std::memory_order_release);
+		}
+		else{
+			barrier::internal::default_atomic_backoff backoff;
+
+			// wait until the last one arrives
+			while (sense.load(std::memory_order_acquire) != local_sense){
+				//backoff();				
+			}
+		}
+
+		local_sense = !local_sense;
+	}
+	#endif
+
+	#if 0
+	void await(){
+		// version that avoids hardware prefetching
+		// arrive at the barrier
+		const size_type pre_arrived = counter.fetch_add(1, std::memory_order_release);
+
+		if (pre_arrived + 1 == num_threads){
+			// i am the last to arrive so reset and signal departure
+			// but first sync memory
+			counter.load(std::memory_order_acquire);
+			counter.store(0, std::memory_order_relaxed);
+			sense.store(local_sense, std::memory_order_release);
+		}
+		else{
+			barrier::internal::default_atomic_backoff backoff;
+
+			// wait until the last one arrives
+			while (sense.load(std::memory_order_relaxed) != local_sense){
+				//backoff();				
+			}
+			sense.load(std::memory_order_acquire); // sync memory
+		}
+
+		local_sense = !local_sense;
+	}
+	#endif
+
+private:
+	std::atomic<size_type> counter; // number of threads that have arrived 
+	// the counter and sense variables must be cache-aligned. first i add padding to separate the counter from the sense.
+	char false_sharing_counter_padding[CACHE_LINE_SIZE - sizeof(counter)];
+	// now counter together with the padding fit in a cache-line. For that to happen the centralized_sense_reversing_barrier must start at a cache-line!
+	// under this assumption, sense begins at the second cache-line and let's put it in a whole cache-line too
+	// IMPORTANT NOTICE: modern hardware usually have hardware prefetchers. For example, the Intel has a L2 Streaming Prefetch mechanism, where automatically the hardware
+	// fetches two cache-lines. This is actually wanted because each thread after accessing the counter variable will later access the sense variable (either for a load
+ 	// or for a store) and we will get the sense variable sooner than requested!
+	
+	// to avoid hardware prefetching put many cache lines in between!!!
+	char _a[64*CACHE_LINE_SIZE];
+	char _b[64*CACHE_LINE_SIZE];
+	char _c[64*CACHE_LINE_SIZE];
+
+	std::atomic<bool> sense; // the sense value for the current barrier phase
+	const size_type num_threads; // how many threads are expected to arrive at the barrier?
+	// A very easy addition here is to also pad num_threads because in that way this struct will consume 3 cache-lines and will be easier to align later.
+	char align_padding[CACHE_LINE_SIZE-sizeof(num_threads)];
+
+	thread_local static bool local_sense; 
+};
+
+} // namespace barrier
+
+#endif

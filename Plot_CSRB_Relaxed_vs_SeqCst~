@@ -1,0 +1,10 @@
+set title "Cost for Memory Model for Centralized Sense Reversing Barrier (Workload=100)"
+set xlabel "Number of Threads"
+set ylabel "Latency"
+
+plot "Data_CSRB_Relaxed_vs_SeqCst" using 1:2 with lines title "Acquire/Release",
+	"" using 1:3 with lines title "Seq-Cst"
+
+set terminal png
+set output "Plot_CSRB_Relaxed_vs_SeqCst.png"
+replot

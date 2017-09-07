@@ -1,0 +1,9 @@
+# NumberOf Threads \ Workload = 100 \ StaticTreeBarrier-Relaxed StaticTreeBarrier-SeqCst
+1	467172		481536
+2	1.15851e+06	1.16192e+06
+3	1.30122e+06	1.56046e+06
+4	2.21941e+06	2.43387e+06
+5	2.53341e+06	2.45911e+06
+6	2.76492e+06	3.29639e+06
+7	3.18491e+06	3.71532e+06
+8	4.36646e+06	5.04974e+06

@@ -1,0 +1,9 @@
+# NumberOf Threads \ Workload = 100 \ CentralizedSenseReversingBarrier StaticTreeBarrier
+1 	502117		467172
+2	1.09367e+06	1.15851e+06
+3	1.37474e+06	1.30122e+06
+4	1.79058e+06	2.21941e+06
+5	2.65538e+06	2.53341e+06
+6	3.97775e+06	2.76492e+06
+7	4.09021e+06	3.18491e+06
+8	4.66334e+06	4.36646e+06
